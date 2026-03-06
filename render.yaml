@@ -9,7 +9,9 @@ services:
       - key: DB_DIALECT
         value: org.hibernate.dialect.PostgreSQLDialect
       - key: DB_URL
-        value: jdbc:${instloc-db.connectionString}
+        fromDatabase:
+          name: instloc-db
+          property: connectionString
       - key: DB_USER
         fromDatabase:
           name: instloc-db
