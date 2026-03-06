@@ -37,5 +37,3 @@ databases:
   - name: instloc-db
     plan: free
     postgresMajorVersion: "16"
-    extensions:
-      - postgis
