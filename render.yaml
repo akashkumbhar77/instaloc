@@ -8,38 +8,34 @@ services:
       - key: DB_DIALECT
         value: org.hibernate.dialect.PostgreSQLDialect
       - key: DB_URL
-        value: postgres://postgres:postgres@instloc-db:${PORT}/instaloc
+        fromDatabase:
+          name: instloc-db
+          property: connectionString
       - key: DB_USER
-        value: postgres
+        fromDatabase:
+          name: instloc-db
+          property: user
       - key: DB_PASSWORD
-        valueFromSecret: postgres_password
+        fromDatabase:
+          name: instloc-db
+          property: password
       - key: OPENAI_API_KEY
-        valueFromSecret: openai_api_key
+        sync: false
       - key: GEMINI_API_KEY
-        valueFromSecret: gemini_api_key
+        sync: false
       - key: GOOGLE_MAPS_API_KEY
-        valueFromSecret: google_maps_api_key
+        sync: false
       - key: SUPABASE_URL
         value: https://ltsklagfqeqphqttrahy.supabase.co
       - key: SUPABASE_JWT_SECRET
-        valueFromSecret: supabase_jwt_secret
-    secrets:
-      - name: postgres_password
-        generateValue: true
-      - name: openai_api_key
-      - name: gemini_api_key
-      - name: google_maps_api_key
-      - name: supabase_jwt_secret
-        value: 0Y4I/pufAT2JqjyWU33IxTyGvC9sqLdfwR4M3BuzvlvN5jqpuOffNjH0+p3zJChsPTVGlr7+YrPcSaKFz4DGmQ==
+        sync: false
     dockerfilePath: Dockerfile
     dockerCommand: sh -c "java -Xmx512m -Xms256m -jar app.jar"
 
+databases:
   # PostgreSQL Database with PostGIS
   - name: instloc-db
-    type: psql
     plan: free
-    databaseName: instaloc
-    databaseUser: postgres
     postgresMajorVersion: "16"
     extensions:
       - postgis

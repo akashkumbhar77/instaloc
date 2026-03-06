@@ -1,5 +1,5 @@
 # Build stage
-FROM eclipse-temurin:21-jdk-jammy AS builder
+FROM eclipse-temurin:17-jdk-jammy AS builder
 
 WORKDIR /app
 
@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y maven && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Runtime stage
-FROM eclipse-temurin:21-jre-jammy
+FROM eclipse-temurin:17-jre-jammy
 
 WORKDIR /app
 
