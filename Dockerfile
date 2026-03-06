@@ -27,7 +27,7 @@ RUN apt-get update && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install yt-dlp
-RUN pip3 install --no-cache-dir yt-dlp --break-system-packages
+RUN pip3 install --no-cache-dir yt-dlp
 
 # Copy the built artifact
 COPY --from=builder /app/target/*.jar app.jar
