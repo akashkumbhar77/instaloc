@@ -1,0 +1,45 @@
+services:
+  # Web Service - Spring Boot API
+  - name: instaloc-api
+    type: web
+    envVars:
+      - key: DB_DRIVER
+        value: org.postgresql.Driver
+      - key: DB_DIALECT
+        value: org.hibernate.dialect.PostgreSQLDialect
+      - key: DB_URL
+        value: postgres://postgres:postgres@instloc-db:${PORT}/instaloc
+      - key: DB_USER
+        value: postgres
+      - key: DB_PASSWORD
+        valueFromSecret: postgres_password
+      - key: OPENAI_API_KEY
+        valueFromSecret: openai_api_key
+      - key: GEMINI_API_KEY
+        valueFromSecret: gemini_api_key
+      - key: GOOGLE_MAPS_API_KEY
+        valueFromSecret: google_maps_api_key
+      - key: SUPABASE_URL
+        value: https://ltsklagfqeqphqttrahy.supabase.co
+      - key: SUPABASE_JWT_SECRET
+        valueFromSecret: supabase_jwt_secret
+    secrets:
+      - name: postgres_password
+        generateValue: true
+      - name: openai_api_key
+      - name: gemini_api_key
+      - name: google_maps_api_key
+      - name: supabase_jwt_secret
+        value: 0Y4I/pufAT2JqjyWU33IxTyGvC9sqLdfwR4M3BuzvlvN5jqpuOffNjH0+p3zJChsPTVGlr7+YrPcSaKFz4DGmQ==
+    dockerfilePath: Dockerfile
+    dockerCommand: sh -c "java -Xmx512m -Xms256m -jar app.jar"
+
+  # PostgreSQL Database with PostGIS
+  - name: instloc-db
+    type: psql
+    plan: free
+    databaseName: instaloc
+    databaseUser: postgres
+    postgresMajorVersion: "16"
+    extensions:
+      - postgis

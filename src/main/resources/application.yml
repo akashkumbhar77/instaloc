@@ -1,0 +1,84 @@
+spring:
+  application:
+    name: InstLoc
+
+  # Database Configuration
+  datasource:
+    # Support both H2 (dev) and PostgreSQL (production)
+    # For production, use: postgres://user:pass@host:port/dbname
+    url: ${DB_URL:jdbc:h2:mem:testdb}
+    username: ${DB_USER:sa}
+    password: ${DB_PASSWORD:}
+    driver-class-name: ${DB_DRIVER:org.h2.Driver}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: ${DB_DIALECT:org.hibernate.dialect.H2Dialect}
+        format_sql: true
+    show-sql: false
+    open-in-view: false
+
+  # H2 Console (for development only)
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  # Servlet Configuration
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
+  # AI Configuration
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      chat:
+        options:
+          model: gpt-4o-mini
+          temperature: 0.2
+    google:
+      genai:
+        api-key: ${GEMINI_API_KEY}
+
+# Google Maps Configuration
+google:
+  maps:
+    api-key: ${GOOGLE_MAPS_API_KEY}
+
+# Supabase Configuration
+supabase:
+  url: ${SUPABASE_URL:}
+  anon-key: ${SUPABASE_ANON_KEY:}
+  service-key: ${SUPABASE_SERVICE_KEY:}
+  jwt-secret: ${SUPABASE_JWT_SECRET:}
+
+# Server Configuration
+server:
+  port: ${APP_PORT:8080}
+
+# Application Configuration
+app:
+  extraction:
+    frames-per-second: 1
+    max-frames: 30
+    temp-directory: /tmp/instaloc
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.skytech.instaloc: DEBUG
+    org.springframework.ai: DEBUG
+    org.hibernate.SQL: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

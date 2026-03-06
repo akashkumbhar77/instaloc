@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./mvnw compile:*)",
+      "Bash(./mvnw dependency:tree:*)",
+      "Bash(ffmpeg:*)",
+      "Bash(jar tf:*)",
+      "Bash(javap:*)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)",
+      "Bash(yt-dlp:*)",
+      "Bash(python3:*)",
+      "Bash(__NEW_LINE_05d56b93c6a56ba7__ echo:*)",
+      "Bash(__NEW_LINE_16ab9d6a8fdf2e2f__ echo:*)",
+      "Bash(__NEW_LINE_8a1a9845bc0698ef__ echo:*)",
+      "Bash(__NEW_LINE_520e59b8b9ea02f3__ echo:*)",
+      "Bash(lsof:*)",
+      "Bash(tail:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git:*)"
+    ]
+  }
+}
