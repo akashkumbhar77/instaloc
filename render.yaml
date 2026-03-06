@@ -1,7 +1,8 @@
 services:
-  # Web Service - Spring Boot API
+  # Web Service - Spring Boot API (Docker)
   - name: instaloc-api
     type: web
+    runtime: docker
     envVars:
       - key: DB_DRIVER
         value: org.postgresql.Driver
@@ -29,11 +30,8 @@ services:
         value: https://ltsklagfqeqphqttrahy.supabase.co
       - key: SUPABASE_JWT_SECRET
         sync: false
-    dockerfilePath: Dockerfile
-    dockerCommand: sh -c "java -Xmx512m -Xms256m -jar app.jar"
 
 databases:
-  # PostgreSQL Database with PostGIS
   - name: instloc-db
     plan: free
     postgresMajorVersion: "16"
