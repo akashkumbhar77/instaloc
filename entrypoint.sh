@@ -1,8 +1,12 @@
 #!/bin/sh
 
-# DB_URL from Render is already a JDBC URL when using jdbcConnectionString
+echo "DEBUG DB_URL=$DB_URL"
+echo "DEBUG SPRING_DATASOURCE_URL=$SPRING_DATASOURCE_URL"
+
 if [ -n "$DB_URL" ]; then
     export SPRING_DATASOURCE_URL="$DB_URL"
 fi
+
+echo "DEBUG FINAL SPRING_DATASOURCE_URL=$SPRING_DATASOURCE_URL"
 
 exec java $JAVA_OPTS -jar app.jar
