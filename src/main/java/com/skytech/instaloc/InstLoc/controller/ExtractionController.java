@@ -112,8 +112,7 @@ public class ExtractionController {
                         null,
                         "success",
                         "Returned cached result",
-                        "/api/v1/extract/cached"
-                ));
+                        "/api/v1/extract/cached"));
             }
         }
 
@@ -134,8 +133,7 @@ public class ExtractionController {
                 job.getId(),
                 "pending",
                 "Extraction job created. Poll status for results.",
-                "/api/v1/extract/" + job.getId() + "/status"
-        ));
+                "/api/v1/extract/" + job.getId() + "/status"));
     }
 
     /**
@@ -153,7 +151,7 @@ public class ExtractionController {
         if (job.getStatus() == ExtractionJobEntity.Status.COMPLETED && job.getResultJson() != null) {
             try {
                 locations = objectMapper.readValue(job.getResultJson(),
-                    objectMapper.getTypeFactory().constructCollectionType(List.class, LocationResponse.class));
+                        objectMapper.getTypeFactory().constructCollectionType(List.class, LocationResponse.class));
             } catch (JsonProcessingException e) {
                 log.warn("Failed to parse result JSON: {}", e.getMessage());
             }
@@ -167,8 +165,7 @@ public class ExtractionController {
                 job.getLocationsFound(),
                 job.getLocationsGrounded(),
                 job.getErrorMessage(),
-                locations
-        );
+                locations);
 
         return ResponseEntity.ok(response);
     }
@@ -179,6 +176,7 @@ public class ExtractionController {
             case PROCESSING -> "Processing extraction (download, AI analysis, grounding)";
             case COMPLETED -> "Extraction completed successfully";
             case FAILED -> "Extraction failed";
+            default -> "Unknown status";
         };
     }
 
@@ -218,9 +216,7 @@ public class ExtractionController {
                             "Returned cached result",
                             responses,
                             new ExtractionResponse.ExtractionStats(
-                                    0, responses.size(), responses.size(), 0
-                            )
-                    ));
+                                    0, responses.size(), responses.size(), 0)));
                 }
             }
 
@@ -228,8 +224,8 @@ public class ExtractionController {
             String caption = null;
             if (isInstagramUrl(reelUrl)) {
                 log.info("Step 0: Downloading Instagram video with caption...");
-                InstagramDownloadService.InstagramDownloadResult downloadResult =
-                    instagramDownloadService.downloadFromInstagram(reelUrl);
+                InstagramDownloadService.InstagramDownloadResult downloadResult = instagramDownloadService
+                        .downloadFromInstagram(reelUrl);
                 downloadedVideo = downloadResult.videoFile();
                 caption = downloadResult.caption();
             }
@@ -249,7 +245,8 @@ public class ExtractionController {
 
             // Step 2: AI Extraction - Caption-first, then vision fallback
             log.info("Step 2: Analyzing for locations (caption-first)...");
-            List<LocationExtraction> extractions = optimizedExtractionService.extractLocations(caption, frameResult.frames());
+            List<LocationExtraction> extractions = optimizedExtractionService.extractLocations(caption,
+                    frameResult.frames());
             log.info("AI found {} potential locations", extractions.size());
 
             // Clean up
@@ -288,9 +285,7 @@ public class ExtractionController {
                             frameCount,
                             extractions.size(),
                             groundedLocations.size(),
-                            processingTime
-                    )
-            ));
+                            processingTime)));
 
         } catch (Exception e) {
             log.error("Extraction failed: {}", e.getMessage(), e);
@@ -302,8 +297,7 @@ public class ExtractionController {
                             "error",
                             "Extraction failed: " + e.getMessage(),
                             new ArrayList<>(),
-                            null
-                    ));
+                            null));
         }
     }
 
@@ -390,8 +384,7 @@ public class ExtractionController {
         return ResponseEntity.ok(java.util.Map.of(
                 "status", ffmpegAvailable && ytDlpAvailable ? "ready" : "missing_dependencies",
                 "ffmpegAvailable", ffmpegAvailable,
-                "ytDlpAvailable", ytDlpAvailable
-        ));
+                "ytDlpAvailable", ytDlpAvailable));
     }
 
     private boolean isInstagramUrl(String url) {
@@ -409,7 +402,6 @@ public class ExtractionController {
                 entity.getLatitude(),
                 entity.getLongitude(),
                 entity.getReelUrl(),
-                entity.getCreatedAt()
-        );
+                entity.getCreatedAt());
     }
 }
