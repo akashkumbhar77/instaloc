@@ -11,7 +11,7 @@ services:
       - key: DB_URL
         fromDatabase:
           name: instloc-db
-          property: jdbcConnectionString
+          property: connectionString
       - key: DB_USER
         fromDatabase:
           name: instloc-db
