@@ -1,9 +1,8 @@
 #!/bin/sh
 
-# Transform Render's postgres:// URL to jdbc:postgresql:// URL
+# DB_URL from Render is already a JDBC URL when using jdbcConnectionString
 if [ -n "$DB_URL" ]; then
-    JDBC_URL="jdbc:postgresql://${DB_URL#postgres://}"
-    export SPRING_DATASOURCE_URL="$JDBC_URL"
+    export SPRING_DATASOURCE_URL="$DB_URL"
 fi
 
 exec java $JAVA_OPTS -jar app.jar
