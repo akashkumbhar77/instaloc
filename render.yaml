@@ -11,7 +11,7 @@ services:
       - key: SPRING_DATASOURCE_URL
         fromDatabase:
           name: instloc-db
-          property: connectionString
+          property: jdbcConnectionString
       - key: DB_USER
         fromDatabase:
           name: instloc-db
