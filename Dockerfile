@@ -32,6 +32,10 @@ RUN pip3 install --no-cache-dir yt-dlp
 # Copy the built artifact
 COPY --from=builder /app/target/*.jar app.jar
 
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Create temp directory for video processing
 RUN mkdir -p /tmp/instaloc && chmod 755 /tmp/instaloc
 
@@ -43,4 +47,4 @@ ENV JAVA_OPTS="-Xmx512m -Xms256m"
 ENV TMP_DIR=/tmp/instaloc
 
 # Run the application
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+ENTRYPOINT ["/entrypoint.sh"]

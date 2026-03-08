@@ -5,8 +5,8 @@ spring:
   # Database Configuration
   datasource:
     # Support both H2 (dev) and PostgreSQL (production)
-    # For production, use: postgres://user:pass@host:port/dbname
-    url: jdbc:${DB_URL}
+    # For production, use: jdbc:postgresql://user:pass@host:port/dbname
+    url: ${SPRING_DATASOURCE_URL:jdbc:${DB_URL}}
     username: ${DB_USER:sa}
     password: ${DB_PASSWORD:}
     driver-class-name: ${DB_DRIVER:org.h2.Driver}
