@@ -1,12 +1,13 @@
 #!/bin/sh
 
 echo "DEBUG DB_URL=$DB_URL"
+echo "DEBUG DB_HOST=$DB_HOST"
+echo "DEBUG DB_PORT=$DB_PORT"
+echo "DEBUG DB_NAME=$DB_NAME"
 echo "DEBUG SPRING_DATASOURCE_URL=$SPRING_DATASOURCE_URL"
 
-if [ -n "$DB_URL" ] && [ -z "$SPRING_DATASOURCE_URL" ]; then
-    # Extract host:port/dbname by removing the scheme and credentials
-    HOST_PORT_DB=$(echo "$DB_URL" | sed -e 's|^postgres[a-z]*://||' -e 's|^[^@]*@||')
-    export SPRING_DATASOURCE_URL="jdbc:postgresql://${HOST_PORT_DB}"
+if [ -n "$DB_HOST" ] && [ -n "$DB_PORT" ] && [ -n "$DB_NAME" ] && [ -z "$SPRING_DATASOURCE_URL" ]; then
+    export SPRING_DATASOURCE_URL="jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}"
 fi
 
 echo "DEBUG FINAL SPRING_DATASOURCE_URL=$SPRING_DATASOURCE_URL"
