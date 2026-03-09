@@ -4,11 +4,10 @@ spring:
 
   # Database Configuration
   datasource:
-    # Support both H2 (dev) and PostgreSQL (production)
-    url: ${SPRING_DATASOURCE_URL:jdbc:h2:mem:testdb}
-    username: ${DB_USER:sa}
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${DB_USER}
     password: ${DB_PASSWORD}
-    driver-class-name: ${DB_DRIVER:org.h2.Driver}
+    driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
       minimum-idle: 5
@@ -20,7 +19,7 @@ spring:
       ddl-auto: update
     properties:
       hibernate:
-        dialect: ${DB_DIALECT:org.hibernate.dialect.H2Dialect}
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     show-sql: false
     open-in-view: false
