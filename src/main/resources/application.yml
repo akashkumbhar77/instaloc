@@ -59,7 +59,9 @@ supabase:
   url: ${SUPABASE_URL:}
   anon-key: ${SUPABASE_ANON_KEY:}
   service-key: ${SUPABASE_SERVICE_KEY:}
-  jwt-secret: ${SUPABASE_JWT_SECRET:}
+
+# JWT/JWKS Configuration for Spring Security
+spring.security.oauth2.resourceserver.jwt.jwk-set-uri: ${SUPABASE_URL:https://ltsklagfqeqphqttrahy.supabase.co}/auth/v1/.well-known/jwks.json
 
 # Server Configuration
 server:
