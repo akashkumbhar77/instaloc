@@ -1,0 +1,49 @@
+services:
+  - name: instaloc-api
+    type: web
+    runtime: docker
+    rootDirectory: InstLoc
+    envVars:
+      - key: DB_DRIVER
+        value: org.postgresql.Driver
+      - key: DB_DIALECT
+        value: org.hibernate.dialect.PostgreSQLDialect
+      - key: DB_HOST
+        fromDatabase:
+          name: instloc-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: instloc-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: instloc-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: instloc-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: instloc-db
+          property: password
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        value: https://ltsklagfqeqphqttrahy.supabase.co
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+
+databases:
+  - name: instloc-db
+    plan: free
+    postgresMajorVersion: "16"

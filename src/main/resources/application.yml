@@ -6,9 +6,9 @@ spring:
   datasource:
     # Support both H2 (dev) and PostgreSQL (production)
     # For production, use: jdbc:postgresql://user:pass@host:port/dbname
-    url: ${SPRING_DATASOURCE_URL}
-    username: ${DB_USER:sa}
-    password: ${DB_PASSWORD:}
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
     driver-class-name: ${DB_DRIVER:org.h2.Driver}
     hikari:
       maximum-pool-size: 10
