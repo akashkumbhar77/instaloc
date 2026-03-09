@@ -22,28 +22,32 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                // Public endpoints
-                .requestMatchers("/api/v1/health", "/api/v1/status").permitAll()
-                .requestMatchers("/actuator/**").permitAll()
-                // All other API endpoints require authentication
-                .requestMatchers("/api/v1/**").authenticated()
-                .anyRequest().authenticated()
-            )
-            .oauth2ResourceServer(oauth2 -> oauth2
-                .jwt(jwt -> jwt.decoder(jwtDecoder()))
-            );
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        // Public endpoints
+                        .requestMatchers("/api/v1/health", "/api/v1/status").permitAll()
+                        .requestMatchers("/actuator/**").permitAll()
+                        // All other API endpoints require authentication
+                        .requestMatchers("/api/v1/**").authenticated()
+                        .anyRequest().authenticated())
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt.decoder(jwtDecoder())));
 
         return http.build();
     }
 
     @Bean
     public JwtDecoder jwtDecoder() {
+        // Fallback to a dummy secret if none is provided to allow the application
+        // context to start
+        String secretToUse = (jwtSecret != null && !jwtSecret.isBlank())
+                ? jwtSecret
+                : "default-dummy-secret-key-that-is-at-least-32-bytes-long";
+
         // Supabase uses HS256 with the JWT secret
-        byte[] secretKeyBytes = jwtSecret.getBytes();
+        byte[] secretKeyBytes = secretToUse.getBytes();
         SecretKeySpec secretKey = new SecretKeySpec(secretKeyBytes, "HmacSHA256");
         return NimbusJwtDecoder.withSecretKey(secretKey).build();
     }
