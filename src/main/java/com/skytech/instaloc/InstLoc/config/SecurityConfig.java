@@ -36,7 +36,6 @@ public class SecurityConfig {
     @Bean
     public JwtDecoder jwtDecoder() {
         // Use Supabase's userinfo endpoint to validate tokens
-        // This is more reliable than JWKS when running in environments with limited network access
         String supabaseUrl = "https://ltsklagfqeqphqttrahy.supabase.co";
         return new SupabaseUserinfoJwtDecoder(supabaseUrl);
     }
@@ -79,7 +78,7 @@ public class SecurityConfig {
                     String email = userInfo.has("email") ? userInfo.get("email").asText() : "";
                     String role = userInfo.has("role") ? userInfo.get("role").asText() : "";
 
-                    // Build JWT with claims from validated token
+                    // Build JWT with claims from userinfo response
                     Jwt.Builder builder = Jwt.withTokenValue(token)
                             .header("alg", "ES256")
                             .subject(userId)
@@ -89,11 +88,12 @@ public class SecurityConfig {
                             .expiresAt(java.time.Instant.now().plusSeconds(3600));
 
                     // Add any additional claims from userinfo
-                    userInfo.fields().forEachRemaining(entry -> {
-                        if (!builder.getClaims().containsKey(entry.getKey())) {
-                            builder.claim(entry.getKey(), entry.getValue().asText());
-                        }
-                    });
+                    if (userInfo.has("app_metadata")) {
+                        builder.claim("app_metadata", userInfo.get("app_metadata").toString());
+                    }
+                    if (userInfo.has("user_metadata")) {
+                        builder.claim("user_metadata", userInfo.get("user_metadata").toString());
+                    }
 
                     return builder.build();
                 } else {
