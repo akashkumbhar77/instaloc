@@ -61,6 +61,7 @@ supabase:
 
 # JWT/JWKS Configuration for Spring Security
 spring.security.oauth2.resourceserver.jwt.jwk-set-uri: https://ltsklagfqeqphqttrahy.supabase.co/auth/v1/.well-known/jwks.json
+spring.security.oauth2.resourceserver.jwt.jwk-cache-time-to-live: 3600000
 
 # Server Configuration
 server:
@@ -80,5 +81,7 @@ logging:
     com.skytech.instaloc: DEBUG
     org.springframework.ai: DEBUG
     org.hibernate.SQL: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.security.oauth2: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
