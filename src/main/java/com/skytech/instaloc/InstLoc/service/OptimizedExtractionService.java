@@ -55,10 +55,15 @@ public class OptimizedExtractionService {
 
             IGNORE: Generic objects, people, food items, furniture, vehicles, or anything that is not a specific place.
 
+            STRICT REQUIREMENTS:
+            1. You MUST classify every location into ONE of these exact categories: [Restaurant, Cafe, Hotel, Landmark, Shopping, Nature]
+            2. You MUST identify the broader region or state (e.g., Hanoi, Quang Ninh, Ho Chi Minh City, etc.)
+
             For each location found, provide:
             - name: The EXACT business name, building name, or place name as shown in signs/logos
             - address: The street address if visible, otherwise the neighborhood/area name
-            - category: One of [restaurant, cafe, bar, beach, landmark, hotel, street, park, mall, other]
+            - category: EXACTLY ONE of [Restaurant, Cafe, Hotel, Landmark, Shopping, Nature] - use this exact casing
+            - stateOrRegion: The broader region, state, or city (e.g., Hanoi, Quang Ninh, Bali, etc.)
             - latitude: Estimated latitude if you can determine location (optional)
             - longitude: Estimated longitude if you can determine location (optional)
             - confidence: How sure you are this is a real, mappable location (0.0 to 1.0)
@@ -69,9 +74,10 @@ public class OptimizedExtractionService {
             3. Be AGGRESSIVE - if there's any indication of a location, include it
             4. Prioritize named businesses with visible signage
             5. Ignore generic objects completely
+            6. ALWAYS include stateOrRegion - infer from signs, captions, or context
 
             Return ONLY a valid JSON array. Example:
-            [{"name": "Blue Bottle Coffee", "address": "123 Main St", "category": "cafe", "latitude": 40.7128, "longitude": -74.0060, "confidence": 0.95}]
+            [{"name": "Blue Bottle Coffee", "address": "123 Main St", "category": "Cafe", "stateOrRegion": "Hanoi", "latitude": 21.0285, "longitude": 105.8542, "confidence": 0.95}]
 
             If you find NO locations, return empty array: []
             """;
@@ -255,6 +261,7 @@ public class OptimizedExtractionService {
                     if (name != null && !name.isBlank()) {
                         String address = node.has("address") ? node.get("address").asText() : null;
                         String category = node.has("category") ? node.get("category").asText() : null;
+                        String stateOrRegion = node.has("stateOrRegion") ? node.get("stateOrRegion").asText() : null;
                         Double latitude = node.has("latitude") && !node.get("latitude").isNull()
                             ? node.get("latitude").asDouble() : null;
                         Double longitude = node.has("longitude") && !node.get("longitude").isNull()
@@ -262,7 +269,7 @@ public class OptimizedExtractionService {
                         Double confidence = node.has("confidence") && !node.get("confidence").isNull()
                             ? node.get("confidence").asDouble() : null;
 
-                        locations.add(new LocationExtraction(name, address, category, latitude, longitude, confidence));
+                        locations.add(new LocationExtraction(name, address, category, stateOrRegion, latitude, longitude, confidence));
                     }
                 }
             }
@@ -278,7 +285,7 @@ public class OptimizedExtractionService {
                 String name = matcher.group(1);
                 String category = matcher.group(2);
                 Double confidence = Double.parseDouble(matcher.group(3));
-                locations.add(new LocationExtraction(name, null, category, null, null, confidence));
+                locations.add(new LocationExtraction(name, null, category, null, null, null, confidence));
             }
         }
 

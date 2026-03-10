@@ -145,6 +145,7 @@ public class GroundingService {
         entity.setAddress(result.formattedAddress);
         entity.setPlaceId(result.placeId);
         entity.setCategory(extraction.category());
+        entity.setStateOrRegion(extraction.stateOrRegion());
         entity.setConfidence(extraction.confidence());
         entity.setReelUrl(reelUrl);
 

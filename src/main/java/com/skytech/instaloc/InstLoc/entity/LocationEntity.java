@@ -33,6 +33,10 @@ public class LocationEntity {
     private String category;
 
     @Nullable
+    @Column(name = "state_or_region")
+    private String stateOrRegion;
+
+    @Nullable
     @Column(name = "confidence")
     private Double confidence;
 
@@ -82,6 +86,9 @@ public class LocationEntity {
 
     public @Nullable String getCategory() { return category; }
     public void setCategory(@Nullable String category) { this.category = category; }
+
+    public @Nullable String getStateOrRegion() { return stateOrRegion; }
+    public void setStateOrRegion(@Nullable String stateOrRegion) { this.stateOrRegion = stateOrRegion; }
 
     public @Nullable Double getConfidence() { return confidence; }
     public void setConfidence(@Nullable Double confidence) { this.confidence = confidence; }

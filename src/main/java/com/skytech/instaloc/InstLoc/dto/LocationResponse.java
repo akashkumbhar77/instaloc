@@ -10,6 +10,7 @@ public record LocationResponse(
     @Nullable String address,
     @Nullable String placeId,
     @Nullable String category,
+    @Nullable String stateOrRegion,
     @Nullable Double confidence,
     @Nullable Double latitude,
     @Nullable Double longitude,
