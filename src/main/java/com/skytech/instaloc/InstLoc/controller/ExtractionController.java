@@ -252,13 +252,16 @@ public class ExtractionController {
                     extractions, user, reelUrl);
             log.info("Grounded {} locations", groundedLocations.size());
 
-            // Save to cache
+            // Save to cache (update if exists)
             if (!groundedLocations.isEmpty()) {
-                ReelCacheEntity cache = new ReelCacheEntity();
-                cache.setReelUrl(reelUrl);
-                cache.setLocationIds(groundedLocations.stream()
+                String locationIds = groundedLocations.stream()
                         .map(l -> l.getId().toString())
-                        .collect(Collectors.joining(",")));
+                        .collect(Collectors.joining(","));
+
+                ReelCacheEntity cache = reelCacheRepository.findByReelUrl(reelUrl)
+                        .orElse(new ReelCacheEntity());
+                cache.setReelUrl(reelUrl);
+                cache.setLocationIds(locationIds);
                 reelCacheRepository.save(cache);
             }
 
@@ -341,13 +344,17 @@ public class ExtractionController {
 
             log.info("Grounded {} locations", groundedLocations.size());
 
-            // Save to cache if not empty
+            // Save to cache if not empty (update if exists)
             if (!groundedLocations.isEmpty() && !reelUrl.isEmpty()) {
-                ReelCacheEntity cache = new ReelCacheEntity();
-                cache.setReelUrl(reelUrl);
-                cache.setLocationIds(groundedLocations.stream()
+                String locationIds = groundedLocations.stream()
                         .map(l -> l.getId().toString())
-                        .collect(Collectors.joining(",")));
+                        .collect(Collectors.joining(","));
+
+                // Check if cache entry exists, update or create
+                ReelCacheEntity cache = reelCacheRepository.findByReelUrl(reelUrl)
+                        .orElse(new ReelCacheEntity());
+                cache.setReelUrl(reelUrl);
+                cache.setLocationIds(locationIds);
                 reelCacheRepository.save(cache);
             }
 
