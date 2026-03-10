@@ -293,6 +293,82 @@ public class ExtractionController {
     }
 
     /**
+     * Get direct video URL from Instagram for client-side processing
+     */
+    @PostMapping("/extract/url")
+    public ResponseEntity<java.util.Map<String, String>> getVideoUrl(
+            @Valid @RequestBody UrlRequest request) {
+        log.info("Getting video URL for: {}", request.reelUrl());
+
+        try {
+            String videoUrl = instagramDownloadService.getVideoUrl(request.reelUrl());
+            return ResponseEntity.ok(java.util.Map.of("url", videoUrl));
+        } catch (Exception e) {
+            log.error("Failed to get video URL: {}", e.getMessage());
+            return ResponseEntity.internalServerError()
+                    .body(java.util.Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Analyze base64-encoded images and extract locations
+     */
+    @PostMapping("/extract/analyze")
+    public ResponseEntity<ExtractionResponse> analyzeImages(
+            @Valid @RequestBody AnalyzeRequest request) {
+        log.info("Analyzing {} images for locations", request.images().size());
+
+        try {
+            // Use caption-first extraction with the provided images
+            List<LocationExtraction> extractions = optimizedExtractionService.extractLocations(
+                    request.caption(), request.images());
+
+            log.info("AI found {} potential locations", extractions.size());
+
+            // Ground locations with Google Places
+            String user = getUserId();
+            String reelUrl = request.reelUrl() != null ? request.reelUrl() : "";
+            List<LocationEntity> groundedLocations = groundingService.groundLocations(
+                    extractions, user, reelUrl);
+
+            log.info("Grounded {} locations", groundedLocations.size());
+
+            // Save to cache if not empty
+            if (!groundedLocations.isEmpty() && !reelUrl.isEmpty()) {
+                ReelCacheEntity cache = new ReelCacheEntity();
+                cache.setReelUrl(reelUrl);
+                cache.setLocationIds(groundedLocations.stream()
+                        .map(l -> l.getId().toString())
+                        .collect(Collectors.joining(",")));
+                reelCacheRepository.save(cache);
+            }
+
+            List<LocationResponse> responses = groundedLocations.stream()
+                    .map(this::toLocationResponse)
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(new ExtractionResponse(
+                    "success",
+                    "Extraction completed successfully",
+                    responses,
+                    new ExtractionResponse.ExtractionStats(
+                            request.images().size(),
+                            extractions.size(),
+                            groundedLocations.size(),
+                            0)));
+
+        } catch (Exception e) {
+            log.error("Analysis failed: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                    .body(new ExtractionResponse(
+                            "error",
+                            "Analysis failed: " + e.getMessage(),
+                            new ArrayList<>(),
+                            null));
+        }
+    }
+
+    /**
      * Get all locations for the authenticated user
      */
     @GetMapping("/locations")

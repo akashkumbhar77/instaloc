@@ -31,6 +31,57 @@ public class InstagramDownloadService {
     public record InstagramDownloadResult(File videoFile, String caption) {}
 
     /**
+     * Get direct video URL from Instagram without downloading
+     * @param instagramUrl The Instagram reel URL
+     * @return Direct URL to the video file
+     * @throws IOException If extraction fails
+     */
+    public String getVideoUrl(String instagramUrl) throws IOException, InterruptedException {
+        log.info("Getting video URL from: {}", instagramUrl);
+
+        if (!isValidInstagramUrl(instagramUrl)) {
+            throw new IOException("Invalid Instagram URL: " + instagramUrl);
+        }
+
+        // Use -g to get direct URL without downloading
+        ProcessBuilder pb = new ProcessBuilder(
+            "yt-dlp",
+            "-f", "best[ext=mp4]/best",
+            "-g",  // Get direct URL
+            "--no-warnings",
+            instagramUrl
+        );
+
+        pb.redirectErrorStream(true);
+        log.info("Running yt-dlp -g for: {}", instagramUrl);
+
+        Process process = pb.start();
+
+        StringBuilder output = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                output.append(line).append("\n");
+            }
+        }
+
+        boolean finished = process.waitFor(TIMEOUT_MINUTES, TimeUnit.MINUTES);
+        if (!finished) {
+            process.destroyForcibly();
+            throw new IOException("yt-dlp timeout while getting video URL");
+        }
+
+        int exitCode = process.exitValue();
+        if (exitCode != 0) {
+            throw new IOException("yt-dlp failed with exit code: " + exitCode);
+        }
+
+        String url = output.toString().trim();
+        log.info("Got video URL: {}", url);
+        return url;
+    }
+
+    /**
      * Download video from Instagram URL using yt-dlp with metadata
      * @param instagramUrl The Instagram reel URL
      * @return InstagramDownloadResult with video file and caption

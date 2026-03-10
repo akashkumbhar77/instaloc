@@ -100,6 +100,36 @@ public class OptimizedExtractionService {
     }
 
     /**
+     * Two-step extraction with base64 images (for client-side FFmpeg)
+     * @param caption The Instagram caption/description (can be null)
+     * @param base64Images List of base64-encoded images
+     * @return List of extracted locations
+     */
+    public List<LocationExtraction> extractLocations(String caption, List<String> base64Images) {
+        log.info("Starting optimized extraction - caption: {}, base64 images: {}",
+            caption != null ? caption.length() + " chars" : "null",
+            base64Images != null ? base64Images.size() : 0);
+
+        // Step A: Try caption-first (text-only)
+        if (caption != null && !caption.isBlank()) {
+            List<LocationExtraction> captionLocations = extractFromCaption(caption);
+            if (!captionLocations.isEmpty()) {
+                log.info("Caption extraction found {} locations", captionLocations.size());
+                return captionLocations;
+            }
+        }
+
+        // Step B: Vision fallback with base64 images
+        if (base64Images != null && !base64Images.isEmpty()) {
+            log.info("Caption extraction found nothing, falling back to vision with base64 images");
+            return extractFromBase64Images(base64Images);
+        }
+
+        log.info("No caption or images available for extraction");
+        return Collections.emptyList();
+    }
+
+    /**
      * Step A: Extract locations from caption text
      */
     public List<LocationExtraction> extractFromCaption(String caption) {
@@ -147,6 +177,34 @@ public class OptimizedExtractionService {
 
         } catch (Exception e) {
             log.error("Vision extraction failed: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Step B (alt): Extract locations from base64-encoded images
+     */
+    public List<LocationExtraction> extractFromBase64Images(List<String> base64Images) {
+        try {
+            log.info("Extracting locations from {} base64 images", base64Images.size());
+
+            String response = chatClient.prompt()
+                    .user(u -> {
+                        u.text(VISION_EXTRACTION_PROMPT);
+                        // Send images as data URLs
+                        for (String base64 : base64Images) {
+                            u.media("image/jpeg", "data:image/jpeg;base64," + base64);
+                        }
+                    })
+                    .call()
+                    .content();
+
+            log.debug("Vision AI response: {}", response.substring(0, Math.min(500, response.length())));
+
+            return parseLocationsResponse(response);
+
+        } catch (Exception e) {
+            log.error("Base64 vision extraction failed: {}", e.getMessage());
             return Collections.emptyList();
         }
     }
