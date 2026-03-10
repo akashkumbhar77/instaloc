@@ -82,6 +82,7 @@ public class SecurityConfig {
 
             // Check API key for protected endpoints
             String apiKey = request.getHeader(API_KEY_HEADER);
+            log.info("Client key: '{}', Server key: '{}'", apiKey, validApiKey);
             log.debug("API Key from request: present={}, expected length={}", apiKey != null, validApiKey.length());
 
             if (apiKey == null || apiKey.isEmpty()) {
@@ -93,7 +94,7 @@ public class SecurityConfig {
             }
 
             if (!apiKey.equals(validApiKey)) {
-                log.warn("Invalid API key in request to {} - key length: {}", path, apiKey.length());
+                log.warn("Invalid API key in request to {} - client length: {}, server length: {}", path, apiKey.length(), validApiKey.length());
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.setContentType("application/json");
                 response.getWriter().write("{\"error\": \"Invalid API key\"}");
