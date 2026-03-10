@@ -65,7 +65,7 @@ app:
     api-key: ${API_SECRET_KEY:}
   extraction:
     frames-per-second: 1
-    max-frames: 30
+    max-frames: 10
     temp-directory: /tmp/instaloc
 
 # Server Configuration
