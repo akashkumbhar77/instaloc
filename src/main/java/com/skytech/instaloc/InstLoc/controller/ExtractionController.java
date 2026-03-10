@@ -317,8 +317,7 @@ public class ExtractionController {
      */
     @GetMapping("/locations/{id}")
     public ResponseEntity<LocationResponse> getLocation(
-            @PathVariable Long id,
-) {
+            @PathVariable Long id) {
 
         String user = getUserId();
         var location = locationRepository.findById(id);
@@ -340,8 +339,7 @@ public class ExtractionController {
      */
     @DeleteMapping("/locations/{id}")
     public ResponseEntity<Void> deleteLocation(
-            @PathVariable Long id,
-) {
+            @PathVariable Long id) {
 
         String user = getUserId();
         var location = locationRepository.findById(id);
