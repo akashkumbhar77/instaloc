@@ -9,14 +9,18 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Collections;
 
 @Configuration
 @EnableWebSecurity
@@ -101,7 +105,12 @@ public class SecurityConfig {
                 return;
             }
 
-            // API key is valid - allow the request
+            // API key is valid - set authentication in SecurityContext
+            UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                    "api-user", null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_API_USER")));
+            SecurityContextHolder.getContext().setAuthentication(auth);
+
+            // Allow the request
             filterChain.doFilter(request, response);
         }
     }
