@@ -177,8 +177,7 @@ public class ExtractionController {
      */
     @PostMapping("/extract/sync")
     public ResponseEntity<ExtractionResponse> extractLocationsSync(
-            @Valid @RequestBody ExtractionRequest request,
-            @AuthenticationPrincipal Jwt jwt) {
+            @Valid @RequestBody ExtractionRequest request) {
 
         long startTime = System.currentTimeMillis();
         String user = getUserId();
