@@ -29,7 +29,7 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints
-                        .requestMatchers("/api/v1/health", "/api/v1/status").permitAll()
+                        .requestMatchers("/api/v1/health", "/api/v1/status", "/api/v1/debug/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         // All other API endpoints require authentication
                         .requestMatchers("/api/v1/**").authenticated()
