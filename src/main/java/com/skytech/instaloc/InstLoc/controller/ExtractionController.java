@@ -16,13 +16,10 @@ import com.skytech.instaloc.InstLoc.service.GroundingService;
 import com.skytech.instaloc.InstLoc.service.InstagramDownloadService;
 import com.skytech.instaloc.InstLoc.service.OptimizedExtractionService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -70,15 +67,10 @@ public class ExtractionController {
     }
 
     /**
-     * Extract user ID from JWT token (sub claim)
+     * Get user ID - using API key auth, so default to a single user
      */
-    private String getUserId(Jwt jwt) {
-        if (jwt == null) {
-            return "anonymous";
-        }
-        // Use 'sub' claim as user ID
-        String sub = jwt.getSubject();
-        return sub != null ? sub : "anonymous";
+    private String getUserId() {
+        return "api-user";
     }
 
     /**
@@ -87,10 +79,9 @@ public class ExtractionController {
      */
     @PostMapping("/extract")
     public ResponseEntity<JobSubmissionResponse> extractLocationsAsync(
-            @Valid @RequestBody ExtractionRequest request,
-            @AuthenticationPrincipal Jwt jwt) {
+            @Valid @RequestBody ExtractionRequest request) {
 
-        String user = getUserId(jwt);
+        String user = getUserId();
         String reelUrl = request.reelUrl();
 
         log.info("Async extraction request for user: {}, URL: {}", user, reelUrl);
@@ -190,7 +181,7 @@ public class ExtractionController {
             @AuthenticationPrincipal Jwt jwt) {
 
         long startTime = System.currentTimeMillis();
-        String user = getUserId(jwt);
+        String user = getUserId();
         String reelUrl = request.reelUrl();
 
         log.info("Starting SYNC extraction for user: {}, URL: {}", user, reelUrl);
@@ -307,9 +298,9 @@ public class ExtractionController {
      */
     @GetMapping("/locations")
     public ResponseEntity<List<LocationResponse>> getLocations(
-            @AuthenticationPrincipal Jwt jwt) {
+) {
 
-        String user = getUserId(jwt);
+        String user = getUserId();
         log.info("Fetching locations for user: {}", user);
 
         List<LocationEntity> locations = locationRepository.findByUserIdOrderByCreatedAtDesc(user);
@@ -327,9 +318,9 @@ public class ExtractionController {
     @GetMapping("/locations/{id}")
     public ResponseEntity<LocationResponse> getLocation(
             @PathVariable Long id,
-            @AuthenticationPrincipal Jwt jwt) {
+) {
 
-        String user = getUserId(jwt);
+        String user = getUserId();
         var location = locationRepository.findById(id);
 
         if (location.isEmpty()) {
@@ -350,9 +341,9 @@ public class ExtractionController {
     @DeleteMapping("/locations/{id}")
     public ResponseEntity<Void> deleteLocation(
             @PathVariable Long id,
-            @AuthenticationPrincipal Jwt jwt) {
+) {
 
-        String user = getUserId(jwt);
+        String user = getUserId();
         var location = locationRepository.findById(id);
         if (location.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -372,16 +363,6 @@ public class ExtractionController {
     @GetMapping("/health")
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("OK");
-    }
-
-    /**
-     * Debug endpoint to check if anon key is loaded
-     */
-    @GetMapping("/debug/auth")
-    public ResponseEntity<?> debugAuth(@Value("${supabase.anon-key:}") String anonKey) {
-        return ResponseEntity.ok(java.util.Map.of(
-                "anonKeyLoaded", anonKey != null && !anonKey.isEmpty(),
-                "anonKeyLength", anonKey != null ? anonKey.length() : 0));
     }
 
     /**

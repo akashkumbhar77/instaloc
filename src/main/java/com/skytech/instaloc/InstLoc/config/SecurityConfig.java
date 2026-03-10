@@ -1,25 +1,27 @@
 package com.skytech.instaloc.InstLoc.config;
 
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
-    @Value("${supabase.anon-key:}")
-    private String supabaseAnonKey;
-
-    @Value("${supabase.url:https://ltsklagfqeqphqttrahy.supabase.co}")
-    private String supabaseUrl;
+    @Value("${app.security.api-key:}")
+    private String apiKey;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -29,94 +31,65 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints
-                        .requestMatchers("/api/v1/health", "/api/v1/status", "/api/v1/debug/**").permitAll()
+                        .requestMatchers("/api/v1/health", "/api/v1/status").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
-                        // All other API endpoints require authentication
+                        // All other API endpoints require API key authentication
                         .requestMatchers("/api/v1/**").authenticated()
                         .anyRequest().authenticated())
-                .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> jwt.decoder(jwtDecoder())));
+                .addFilterBefore(apiKeyFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
     @Bean
-    public JwtDecoder jwtDecoder() {
-        // Use Supabase's userinfo endpoint to validate tokens
-        return new SupabaseUserinfoJwtDecoder(supabaseUrl, supabaseAnonKey);
+    public OncePerRequestFilter apiKeyFilter() {
+        return new ApiKeyFilter(apiKey);
     }
 
     /**
-     * Custom JWT decoder that validates tokens via Supabase's userinfo endpoint
+     * Custom filter that validates API key from X-API-KEY header
      */
-    static class SupabaseUserinfoJwtDecoder implements JwtDecoder {
-        private final String supabaseUrl;
-        private final String supabaseAnonKey;
-        private final RestTemplate restTemplate;
+    static class ApiKeyFilter extends OncePerRequestFilter {
 
-        public SupabaseUserinfoJwtDecoder(String supabaseUrl, String supabaseAnonKey) {
-            this.supabaseUrl = supabaseUrl;
-            this.supabaseAnonKey = supabaseAnonKey;
-            this.restTemplate = new RestTemplate();
+        private static final String API_KEY_HEADER = "X-API-KEY";
+        private final String validApiKey;
+
+        public ApiKeyFilter(String validApiKey) {
+            this.validApiKey = validApiKey;
         }
 
         @Override
-        public Jwt decode(String token) {
-            try {
-                // Validate token by calling Supabase's userinfo endpoint
-                String userinfoUrl = supabaseUrl + "/auth/v1/userinfo";
-                org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
-                headers.setBearerAuth(token);
-                headers.set("apikey", supabaseAnonKey);
+        protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+                                        FilterChain filterChain) throws ServletException, IOException {
 
-                org.springframework.http.HttpEntity<String> entity = new org.springframework.http.HttpEntity<>(headers);
-                org.springframework.http.ResponseEntity<String> response = restTemplate.exchange(
-                        userinfoUrl,
-                        org.springframework.http.HttpMethod.GET,
-                        entity,
-                        String.class
-                );
+            String path = request.getRequestURI();
 
-                if (response.getStatusCode() == org.springframework.http.HttpStatus.OK) {
-                    // Token is valid, parse the userinfo response
-                    com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-                    com.fasterxml.jackson.databind.JsonNode userInfo = mapper.readTree(response.getBody());
-
-                    // Extract claims from userinfo
-                    String userId = userInfo.has("id") ? userInfo.get("id").asText() : "";
-                    String email = userInfo.has("email") ? userInfo.get("email").asText() : "";
-                    String role = userInfo.has("role") ? userInfo.get("role").asText() : "";
-
-                    // Build JWT with claims from userinfo response
-                    Jwt.Builder builder = Jwt.withTokenValue(token)
-                            .header("alg", "ES256")
-                            .subject(userId)
-                            .claim("email", email)
-                            .claim("role", role)
-                            .issuedAt(java.time.Instant.now())
-                            .expiresAt(java.time.Instant.now().plusSeconds(3600));
-
-                    // Add any additional claims from userinfo
-                    if (userInfo.has("app_metadata")) {
-                        builder.claim("app_metadata", userInfo.get("app_metadata").toString());
-                    }
-                    if (userInfo.has("user_metadata")) {
-                        builder.claim("user_metadata", userInfo.get("user_metadata").toString());
-                    }
-
-                    return builder.build();
-                } else {
-                    throw new org.springframework.security.oauth2.jwt.JwtValidationException(
-                            "Token validation failed: " + response.getStatusCode(),
-                            java.util.Collections.emptyList()
-                    );
-                }
-            } catch (Exception e) {
-                throw new org.springframework.security.oauth2.jwt.JwtValidationException(
-                        "Token validation failed: " + e.getMessage(),
-                        java.util.Collections.emptyList()
-                );
+            // Skip authentication for public endpoints
+            if (path.startsWith("/api/v1/health") || path.startsWith("/api/v1/status")
+                    || path.startsWith("/actuator")) {
+                filterChain.doFilter(request, response);
+                return;
             }
+
+            // Check API key for protected endpoints
+            String apiKey = request.getHeader(API_KEY_HEADER);
+
+            if (apiKey == null || apiKey.isEmpty()) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\": \"Missing X-API-KEY header\"}");
+                return;
+            }
+
+            if (!apiKey.equals(validApiKey)) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\": \"Invalid API key\"}");
+                return;
+            }
+
+            // API key is valid - allow the request
+            filterChain.doFilter(request, response);
         }
     }
 }

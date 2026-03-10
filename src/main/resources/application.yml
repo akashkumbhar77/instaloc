@@ -59,20 +59,18 @@ supabase:
   anon-key: ${SUPABASE_ANON_KEY:}
   service-key: ${SUPABASE_SERVICE_KEY:}
 
-# JWT/JWKS Configuration for Spring Security
-spring.security.oauth2.resourceserver.jwt.jwk-set-uri: https://ltsklagfqeqphqttrahy.supabase.co/auth/v1/.well-known/jwks.json
-spring.security.oauth2.resourceserver.jwt.jwk-cache-time-to-live: 3600000
-
-# Server Configuration
-server:
-  port: ${APP_PORT:8080}
-
-# Application Configuration
+# Application Security Configuration
 app:
+  security:
+    api-key: ${API_SECRET_KEY:}
   extraction:
     frames-per-second: 1
     max-frames: 30
     temp-directory: /tmp/instaloc
+
+# Server Configuration
+server:
+  port: ${APP_PORT:8080}
 
 # Logging Configuration
 logging:
