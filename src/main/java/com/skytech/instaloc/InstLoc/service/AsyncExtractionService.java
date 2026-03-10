@@ -52,7 +52,7 @@ public class AsyncExtractionService {
         this.objectMapper = new ObjectMapper();
     }
 
-    @Async
+    @Async("taskExecutor")
     public void processExtractionJob(Long jobId, String reelUrl, String userId) {
         log.info("Starting async extraction for job: {}, URL: {}", jobId, reelUrl);
 
