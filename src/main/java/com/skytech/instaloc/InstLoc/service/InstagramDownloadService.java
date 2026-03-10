@@ -1,5 +1,6 @@
 package com.skytech.instaloc.InstLoc.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,6 +25,7 @@ public class InstagramDownloadService {
     private String tempDirectory;
 
     private static final int TIMEOUT_MINUTES = 10;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
      * Result of Instagram download containing video and optional caption
@@ -31,29 +33,34 @@ public class InstagramDownloadService {
     public record InstagramDownloadResult(File videoFile, String caption) {}
 
     /**
-     * Get direct video URL from Instagram without downloading
+     * Result containing video URL and caption
+     */
+    public record VideoUrlResult(String videoUrl, String caption) {}
+
+    /**
+     * Get direct video URL and caption from Instagram without downloading
      * @param instagramUrl The Instagram reel URL
-     * @return Direct URL to the video file
+     * @return VideoUrlResult containing both videoUrl and caption
      * @throws IOException If extraction fails
      */
-    public String getVideoUrl(String instagramUrl) throws IOException, InterruptedException {
-        log.info("Getting video URL from: {}", instagramUrl);
+    public VideoUrlResult getVideoUrlWithCaption(String instagramUrl) throws IOException, InterruptedException {
+        log.info("Getting video URL and caption from: {}", instagramUrl);
 
         if (!isValidInstagramUrl(instagramUrl)) {
             throw new IOException("Invalid Instagram URL: " + instagramUrl);
         }
 
-        // Use -g to get direct URL without downloading
+        // Use --dump-json to get both URL and description in JSON format
         ProcessBuilder pb = new ProcessBuilder(
             "yt-dlp",
             "-f", "best[ext=mp4]/best",
-            "-g",  // Get direct URL
+            "--dump-json",
             "--no-warnings",
             instagramUrl
         );
 
         pb.redirectErrorStream(true);
-        log.info("Running yt-dlp -g for: {}", instagramUrl);
+        log.info("Running yt-dlp --dump-json for: {}", instagramUrl);
 
         Process process = pb.start();
 
@@ -76,9 +83,50 @@ public class InstagramDownloadService {
             throw new IOException("yt-dlp failed with exit code: " + exitCode);
         }
 
-        String url = output.toString().trim();
-        log.info("Got video URL: {}", url);
-        return url;
+        String jsonOutput = output.toString().trim();
+        log.debug("JSON output: {}", jsonOutput.substring(0, Math.min(500, jsonOutput.length())));
+
+        // Parse JSON to extract url and description
+        String videoUrl = null;
+        String caption = null;
+
+        try {
+            com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(jsonOutput);
+            videoUrl = root.has("url") ? root.get("url").asText() : null;
+            caption = root.has("description") ? root.get("description").asText() : null;
+        } catch (Exception e) {
+            log.warn("Failed to parse JSON output: {}", e.getMessage());
+            // Fallback: try to extract URL from first line
+            String[] lines = jsonOutput.split("\n");
+            for (String line : lines) {
+                if (line.contains("\"url\"")) {
+                    try {
+                        com.fasterxml.jackson.databind.JsonNode node = objectMapper.readTree(line);
+                        videoUrl = node.has("url") ? node.get("url").asText() : null;
+                        caption = node.has("description") ? node.get("description").asText() : null;
+                        break;
+                    } catch (Exception ignored) {}
+                }
+            }
+        }
+
+        if (videoUrl == null || videoUrl.isBlank()) {
+            throw new IOException("Failed to extract video URL from yt-dlp output");
+        }
+
+        log.info("Got video URL: {} (caption length: {})", videoUrl, caption != null ? caption.length() : 0);
+        return new VideoUrlResult(videoUrl, caption);
+    }
+
+    /**
+     * Get direct video URL from Instagram without downloading (legacy)
+     * @param instagramUrl The Instagram reel URL
+     * @return Direct URL to the video file
+     * @throws IOException If extraction fails
+     */
+    public String getVideoUrl(String instagramUrl) throws IOException, InterruptedException {
+        VideoUrlResult result = getVideoUrlWithCaption(instagramUrl);
+        return result.videoUrl();
     }
 
     /**

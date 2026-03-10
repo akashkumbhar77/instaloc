@@ -293,16 +293,24 @@ public class ExtractionController {
     }
 
     /**
-     * Get direct video URL from Instagram for client-side processing
+     * Get direct video URL and caption from Instagram for client-side processing
      */
     @PostMapping("/extract/url")
     public ResponseEntity<java.util.Map<String, String>> getVideoUrl(
             @Valid @RequestBody UrlRequest request) {
-        log.info("Getting video URL for: {}", request.reelUrl());
+        log.info("Getting video URL and caption for: {}", request.reelUrl());
 
         try {
-            String videoUrl = instagramDownloadService.getVideoUrl(request.reelUrl());
-            return ResponseEntity.ok(java.util.Map.of("url", videoUrl));
+            InstagramDownloadService.VideoUrlResult result =
+                instagramDownloadService.getVideoUrlWithCaption(request.reelUrl());
+
+            java.util.Map<String, String> response = new java.util.HashMap<>();
+            response.put("videoUrl", result.videoUrl());
+            if (result.caption() != null) {
+                response.put("caption", result.caption());
+            }
+
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Failed to get video URL: {}", e.getMessage());
             return ResponseEntity.internalServerError()

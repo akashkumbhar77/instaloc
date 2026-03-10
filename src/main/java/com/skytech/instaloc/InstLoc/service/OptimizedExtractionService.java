@@ -1,5 +1,6 @@
 package com.skytech.instaloc.InstLoc.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.skytech.instaloc.InstLoc.dto.LocationExtraction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +25,7 @@ public class OptimizedExtractionService {
     private static final Logger log = LoggerFactory.getLogger(OptimizedExtractionService.class);
 
     private final ChatClient chatClient;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final String CAPTION_EXTRACTION_PROMPT = """
             You are a location extraction expert. Analyze this Instagram caption/description and extract ALL locations mentioned.
@@ -47,20 +49,29 @@ public class OptimizedExtractionService {
             """;
 
     private static final String VISION_EXTRACTION_PROMPT = """
-            You are an expert at analyzing Instagram Reel frames to find locations.
+            You are an expert geospatial intelligence agent. Analyze these video frames and the accompanying caption text to identify specific, mappable locations.
 
-            TASK: Look carefully at every frame and identify ALL locations shown in the video.
+            TASK: Cross-reference visual clues in the frames with the caption text. Look for storefront signs, street names, menu boards, logos, and iconic landmarks. Identify specific, real-world locations that can be mapped (cafes, hotels, restaurants, attractions, etc.).
 
-            For each location you find, extract:
-            - name: The EXACT business name, building name, or place name as shown
+            IGNORE: Generic objects, people, food items, furniture, vehicles, or anything that is not a specific place.
+
+            For each location found, provide:
+            - name: The EXACT business name, building name, or place name as shown in signs/logos
+            - address: The street address if visible, otherwise the neighborhood/area name
             - category: One of [restaurant, cafe, bar, beach, landmark, hotel, street, park, mall, other]
-            - confidence: How sure you are (0.0 to 1.0)
+            - latitude: Estimated latitude if you can determine location (optional)
+            - longitude: Estimated longitude if you can determine location (optional)
+            - confidence: How sure you are this is a real, mappable location (0.0 to 1.0)
 
-            CRITICAL: Read all text in frames - signs, logos, menus, street names.
-            Be thorough - extract every single location.
+            CRITICAL INSTRUCTIONS:
+            1. Read ALL text in frames - signs, logos, menus, street signs, store fronts
+            2. Cross-reference visual clues with caption text for verification
+            3. Be AGGRESSIVE - if there's any indication of a location, include it
+            4. Prioritize named businesses with visible signage
+            5. Ignore generic objects completely
 
             Return ONLY a valid JSON array. Example:
-            [{"name": "Starbucks", "category": "cafe", "confidence": 0.9}]
+            [{"name": "Blue Bottle Coffee", "address": "123 Main St", "category": "cafe", "latitude": 40.7128, "longitude": -74.0060, "confidence": 0.95}]
 
             If you find NO locations, return empty array: []
             """;
@@ -119,10 +130,10 @@ public class OptimizedExtractionService {
             }
         }
 
-        // Step B: Vision fallback with base64 images
+        // Step B: Vision fallback with base64 images (pass caption for context)
         if (base64Images != null && !base64Images.isEmpty()) {
             log.info("Caption extraction found nothing, falling back to vision with base64 images");
-            return extractFromBase64Images(base64Images);
+            return extractFromBase64Images(base64Images, caption);
         }
 
         log.info("No caption or images available for extraction");
@@ -182,15 +193,22 @@ public class OptimizedExtractionService {
     }
 
     /**
-     * Step B (alt): Extract locations from base64-encoded images
+     * Step B (alt): Extract locations from base64-encoded images with caption context
      */
-    public List<LocationExtraction> extractFromBase64Images(List<String> base64Images) {
+    public List<LocationExtraction> extractFromBase64Images(List<String> base64Images, String caption) {
         try {
-            log.info("Extracting locations from {} base64 images", base64Images.size());
+            log.info("Extracting locations from {} base64 images (caption: {})",
+                base64Images.size(), caption != null ? caption.length() + " chars" : "none");
+
+            // Build user prompt with caption context
+            String userPrompt = VISION_EXTRACTION_PROMPT;
+            if (caption != null && !caption.isBlank()) {
+                userPrompt += "\n\nCAPTION TEXT (for cross-reference):\n" + caption;
+            }
 
             String response = chatClient.prompt()
                     .user(u -> {
-                        u.text(VISION_EXTRACTION_PROMPT);
+                        u.text(userPrompt);
                         // Send images as data URLs using ByteArrayResource
                         for (String base64 : base64Images) {
                             byte[] imageBytes = java.util.Base64.getDecoder().decode(base64);
@@ -223,17 +241,40 @@ public class OptimizedExtractionService {
 
         List<LocationExtraction> locations = new ArrayList<>();
 
-        // Simple regex parsing
-        Pattern pattern = Pattern.compile(
-            "\\{[^}]*\"name\"\\s*:\\s*\"([^\"]+)\"[^}]*\"category\"\\s*:\\s*\"([^\"]+)\"[^}]*\"confidence\"\\s*:\\s*([0-9.]+)[^}]*\\}"
-        );
+        // Try JSON parsing first (more robust)
+        try {
+            com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(jsonContent);
+            if (root.isArray()) {
+                for (com.fasterxml.jackson.databind.JsonNode node : root) {
+                    String name = node.has("name") ? node.get("name").asText() : null;
+                    if (name != null && !name.isBlank()) {
+                        String address = node.has("address") ? node.get("address").asText() : null;
+                        String category = node.has("category") ? node.get("category").asText() : null;
+                        Double latitude = node.has("latitude") && !node.get("latitude").isNull()
+                            ? node.get("latitude").asDouble() : null;
+                        Double longitude = node.has("longitude") && !node.get("longitude").isNull()
+                            ? node.get("longitude").asDouble() : null;
+                        Double confidence = node.has("confidence") && !node.get("confidence").isNull()
+                            ? node.get("confidence").asDouble() : null;
 
-        Matcher matcher = pattern.matcher(jsonContent);
-        while (matcher.find()) {
-            String name = matcher.group(1);
-            String category = matcher.group(2);
-            Double confidence = Double.parseDouble(matcher.group(3));
-            locations.add(new LocationExtraction(name, category, confidence));
+                        locations.add(new LocationExtraction(name, address, category, latitude, longitude, confidence));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("JSON parsing failed, falling back to regex: {}", e.getMessage());
+            // Fallback to regex for backward compatibility
+            Pattern pattern = Pattern.compile(
+                "\\{[^}]*\"name\"\\s*:\\s*\"([^\"]+)\"[^}]*\"category\"\\s*:\\s*\"([^\"]+)\"[^}]*\"confidence\"\\s*:\\s*([0-9.]+)[^}]*\\}"
+            );
+
+            Matcher matcher = pattern.matcher(jsonContent);
+            while (matcher.find()) {
+                String name = matcher.group(1);
+                String category = matcher.group(2);
+                Double confidence = Double.parseDouble(matcher.group(3));
+                locations.add(new LocationExtraction(name, null, category, null, null, confidence));
+            }
         }
 
         log.info("Parsed {} locations from response", locations.size());
