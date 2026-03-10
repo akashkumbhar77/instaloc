@@ -105,7 +105,7 @@ public class OptimizedExtractionService {
      * @param base64Images List of base64-encoded images
      * @return List of extracted locations
      */
-    public List<LocationExtraction> extractLocations(String caption, List<String> base64Images) {
+    public List<LocationExtraction> extractLocationsFromBase64(String caption, List<String> base64Images) {
         log.info("Starting optimized extraction - caption: {}, base64 images: {}",
             caption != null ? caption.length() + " chars" : "null",
             base64Images != null ? base64Images.size() : 0);
@@ -191,9 +191,11 @@ public class OptimizedExtractionService {
             String response = chatClient.prompt()
                     .user(u -> {
                         u.text(VISION_EXTRACTION_PROMPT);
-                        // Send images as data URLs
+                        // Send images as data URLs using ByteArrayResource
                         for (String base64 : base64Images) {
-                            u.media("image/jpeg", "data:image/jpeg;base64," + base64);
+                            byte[] imageBytes = java.util.Base64.getDecoder().decode(base64);
+                            u.media(org.springframework.util.MimeTypeUtils.IMAGE_JPEG,
+                                new org.springframework.core.io.ByteArrayResource(imageBytes));
                         }
                     })
                     .call()

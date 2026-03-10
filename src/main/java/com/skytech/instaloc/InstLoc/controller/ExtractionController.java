@@ -320,7 +320,7 @@ public class ExtractionController {
 
         try {
             // Use caption-first extraction with the provided images
-            List<LocationExtraction> extractions = optimizedExtractionService.extractLocations(
+            List<LocationExtraction> extractions = optimizedExtractionService.extractLocationsFromBase64(
                     request.caption(), request.images());
 
             log.info("AI found {} potential locations", extractions.size());
