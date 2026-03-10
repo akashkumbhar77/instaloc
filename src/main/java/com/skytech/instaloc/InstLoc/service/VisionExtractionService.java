@@ -115,11 +115,17 @@ public class VisionExtractionService {
 
             for (JsonNode node : rootNode) {
                 String name = node.has("name") ? node.get("name").asText() : null;
+                String address = node.has("address") ? node.get("address").asText() : null;
                 String category = node.has("category") ? node.get("category").asText() : "other";
-                double confidence = node.has("confidence") ? node.get("confidence").asDouble() : 0.5;
+                Double latitude = node.has("latitude") && !node.get("latitude").isNull()
+                    ? node.get("latitude").asDouble() : null;
+                Double longitude = node.has("longitude") && !node.get("longitude").isNull()
+                    ? node.get("longitude").asDouble() : null;
+                Double confidence = node.has("confidence") && !node.get("confidence").isNull()
+                    ? node.get("confidence").asDouble() : null;
 
                 if (name != null && !name.isBlank()) {
-                    locations.add(new LocationExtraction(name, category, confidence));
+                    locations.add(new LocationExtraction(name, address, category, latitude, longitude, confidence));
                 }
             }
 

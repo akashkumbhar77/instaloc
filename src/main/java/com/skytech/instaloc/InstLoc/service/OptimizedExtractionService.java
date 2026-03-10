@@ -200,17 +200,22 @@ public class OptimizedExtractionService {
             log.info("Extracting locations from {} base64 images (caption: {})",
                 base64Images.size(), caption != null ? caption.length() + " chars" : "none");
 
-            // Build user prompt with caption context
-            String userPrompt = VISION_EXTRACTION_PROMPT;
+            // Build user prompt with caption context (use final variable for lambda)
+            final String userPrompt;
             if (caption != null && !caption.isBlank()) {
-                userPrompt += "\n\nCAPTION TEXT (for cross-reference):\n" + caption;
+                userPrompt = VISION_EXTRACTION_PROMPT + "\n\nCAPTION TEXT (for cross-reference):\n" + caption;
+            } else {
+                userPrompt = VISION_EXTRACTION_PROMPT;
             }
+
+            // Capture base64Images in final array for lambda
+            final List<String> finalBase64Images = base64Images;
 
             String response = chatClient.prompt()
                     .user(u -> {
                         u.text(userPrompt);
                         // Send images as data URLs using ByteArrayResource
-                        for (String base64 : base64Images) {
+                        for (String base64 : finalBase64Images) {
                             byte[] imageBytes = java.util.Base64.getDecoder().decode(base64);
                             u.media(org.springframework.util.MimeTypeUtils.IMAGE_JPEG,
                                 new org.springframework.core.io.ByteArrayResource(imageBytes));
