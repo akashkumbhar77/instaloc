@@ -16,6 +16,7 @@ import com.skytech.instaloc.InstLoc.service.GroundingService;
 import com.skytech.instaloc.InstLoc.service.InstagramDownloadService;
 import com.skytech.instaloc.InstLoc.service.OptimizedExtractionService;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -371,6 +372,16 @@ public class ExtractionController {
     @GetMapping("/health")
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("OK");
+    }
+
+    /**
+     * Debug endpoint to check if anon key is loaded
+     */
+    @GetMapping("/debug/auth")
+    public ResponseEntity<?> debugAuth(@Value("${supabase.anon-key:}") String anonKey) {
+        return ResponseEntity.ok(java.util.Map.of(
+                "anonKeyLoaded", anonKey != null && !anonKey.isEmpty(),
+                "anonKeyLength", anonKey != null ? anonKey.length() : 0));
     }
 
     /**
