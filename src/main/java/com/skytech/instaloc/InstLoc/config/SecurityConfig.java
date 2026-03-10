@@ -4,6 +4,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,8 +22,15 @@ import java.io.IOException;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
+
     @Value("${app.security.api-key:}")
     private String apiKey;
+
+    @jakarta.annotation.PostConstruct
+    public void init() {
+        log.info("API Key loaded: present={}, length={}", !apiKey.isEmpty(), apiKey.length());
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -73,8 +82,10 @@ public class SecurityConfig {
 
             // Check API key for protected endpoints
             String apiKey = request.getHeader(API_KEY_HEADER);
+            log.debug("API Key from request: present={}, expected length={}", apiKey != null, validApiKey.length());
 
             if (apiKey == null || apiKey.isEmpty()) {
+                log.warn("Missing API key in request to {}", path);
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.setContentType("application/json");
                 response.getWriter().write("{\"error\": \"Missing X-API-KEY header\"}");
@@ -82,6 +93,7 @@ public class SecurityConfig {
             }
 
             if (!apiKey.equals(validApiKey)) {
+                log.warn("Invalid API key in request to {} - key length: {}", path, apiKey.length());
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.setContentType("application/json");
                 response.getWriter().write("{\"error\": \"Invalid API key\"}");
