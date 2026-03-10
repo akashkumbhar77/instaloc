@@ -1,5 +1,6 @@
 package com.skytech.instaloc.InstLoc.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -13,6 +14,12 @@ import org.springframework.web.client.RestTemplate;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+    @Value("${supabase.anon-key:}")
+    private String supabaseAnonKey;
+
+    @Value("${supabase.url:https://ltsklagfqeqphqttrahy.supabase.co}")
+    private String supabaseUrl;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -36,8 +43,7 @@ public class SecurityConfig {
     @Bean
     public JwtDecoder jwtDecoder() {
         // Use Supabase's userinfo endpoint to validate tokens
-        String supabaseUrl = "https://ltsklagfqeqphqttrahy.supabase.co";
-        return new SupabaseUserinfoJwtDecoder(supabaseUrl);
+        return new SupabaseUserinfoJwtDecoder(supabaseUrl, supabaseAnonKey);
     }
 
     /**
@@ -45,10 +51,12 @@ public class SecurityConfig {
      */
     static class SupabaseUserinfoJwtDecoder implements JwtDecoder {
         private final String supabaseUrl;
+        private final String supabaseAnonKey;
         private final RestTemplate restTemplate;
 
-        public SupabaseUserinfoJwtDecoder(String supabaseUrl) {
+        public SupabaseUserinfoJwtDecoder(String supabaseUrl, String supabaseAnonKey) {
             this.supabaseUrl = supabaseUrl;
+            this.supabaseAnonKey = supabaseAnonKey;
             this.restTemplate = new RestTemplate();
         }
 
@@ -59,6 +67,7 @@ public class SecurityConfig {
                 String userinfoUrl = supabaseUrl + "/auth/v1/userinfo";
                 org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
                 headers.setBearerAuth(token);
+                headers.set("apikey", supabaseAnonKey);
 
                 org.springframework.http.HttpEntity<String> entity = new org.springframework.http.HttpEntity<>(headers);
                 org.springframework.http.ResponseEntity<String> response = restTemplate.exchange(
