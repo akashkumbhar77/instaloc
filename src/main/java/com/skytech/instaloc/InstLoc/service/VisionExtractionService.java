@@ -125,7 +125,7 @@ public class VisionExtractionService {
                     ? node.get("confidence").asDouble() : null;
 
                 if (name != null && !name.isBlank()) {
-                    locations.add(new LocationExtraction(name, address, category, latitude, longitude, confidence));
+                    locations.add(new LocationExtraction(name, address, category, null, latitude, longitude, confidence));
                 }
             }
 

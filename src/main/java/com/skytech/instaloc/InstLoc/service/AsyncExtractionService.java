@@ -155,6 +155,7 @@ public class AsyncExtractionService {
                 entity.getAddress(),
                 entity.getPlaceId(),
                 entity.getCategory(),
+                entity.getStateOrRegion(),
                 entity.getConfidence(),
                 entity.getLatitude(),
                 entity.getLongitude(),
