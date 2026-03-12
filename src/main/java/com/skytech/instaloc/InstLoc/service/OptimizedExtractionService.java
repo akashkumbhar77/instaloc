@@ -49,37 +49,36 @@ public class OptimizedExtractionService {
             """;
 
     private static final String VISION_EXTRACTION_PROMPT = """
-            You are an expert geospatial intelligence agent. Analyze these video frames and the accompanying caption text to identify specific, mappable locations.
+            You are an expert geospatial intelligence agent. Analyze these video frames and the caption text to identify specific, real-world, mappable locations.
 
-            TASK: Cross-reference visual clues in the frames with the caption text. Look for storefront signs, street names, menu boards, logos, and iconic landmarks. Identify specific, real-world locations that can be mapped (cafes, hotels, restaurants, attractions, etc.).
+            TASK: Look for storefront signs, street names, menu boards, logos, and landmarks. Identify specific places that can be found on a map (cafes, hotels, restaurants, attractions, etc.).
 
-            IGNORE: Generic objects, people, food items, furniture, vehicles, or anything that is not a specific place.
+            IGNORE: Generic objects, people, food items, furniture, vehicles, or anything that is not a named place.
 
             STRICT REQUIREMENTS:
-            1. You MUST classify every location into ONE of these exact categories: [Restaurant, Cafe, Hotel, Landmark, Shopping, Nature]
-            2. You MUST identify the broader region or state (e.g., Hanoi, Quang Ninh, Ho Chi Minh City, etc.)
+            1. Only include locations you are AT LEAST 60% confident about (confidence >= 0.6)
+            2. Classify every location into EXACTLY ONE of: [Restaurant, Cafe, Hotel, Landmark, Shopping, Nature]
+            3. Always include stateOrRegion — infer from signs, captions, or visual context
 
-            For each location found, provide:
-            - name: The EXACT business name, building name, or place name as shown in signs/logos
-            - address: The street address if visible, otherwise the neighborhood/area name
-            - category: EXACTLY ONE of [Restaurant, Cafe, Hotel, Landmark, Shopping, Nature] - use this exact casing
-            - stateOrRegion: The broader region, state, or city (e.g., Hanoi, Quang Ninh, Bali, etc.)
-            - latitude: Estimated latitude if you can determine location (optional)
-            - longitude: Estimated longitude if you can determine location (optional)
-            - confidence: How sure you are this is a real, mappable location (0.0 to 1.0)
+            For each location, provide:
+            - name: The EXACT name as shown in signs/logos
+            - address: Street address if visible, otherwise the area name
+            - category: Exactly one of [Restaurant, Cafe, Hotel, Landmark, Shopping, Nature]
+            - stateOrRegion: The broader region or city (e.g., Hanoi, Bali, Ho Chi Minh City)
+            - latitude: Estimated latitude if determinable (optional)
+            - longitude: Estimated longitude if determinable (optional)
+            - confidence: Your confidence score (0.0 to 1.0, must be >= 0.6 to include)
 
-            CRITICAL INSTRUCTIONS:
-            1. Read ALL text in frames - signs, logos, menus, street signs, store fronts
-            2. Cross-reference visual clues with caption text for verification
-            3. Be AGGRESSIVE - if there's any indication of a location, include it
-            4. Prioritize named businesses with visible signage
-            5. Ignore generic objects completely
-            6. ALWAYS include stateOrRegion - infer from signs, captions, or context
+            INSTRUCTIONS:
+            1. Read ALL visible text — signs, logos, menus, street signs
+            2. Cross-reference visual clues with the caption text
+            3. Only include named businesses or landmarks with clear visual evidence
+            4. Do NOT guess — if you cannot identify a specific named place, skip it
 
             Return ONLY a valid JSON array. Example:
             [{"name": "Blue Bottle Coffee", "address": "123 Main St", "category": "Cafe", "stateOrRegion": "Hanoi", "latitude": 21.0285, "longitude": 105.8542, "confidence": 0.95}]
 
-            If you find NO locations, return empty array: []
+            If you find NO qualifying locations, return empty array: []
             """;
 
     public OptimizedExtractionService(ChatClient.Builder builder) {
@@ -97,23 +96,26 @@ public class OptimizedExtractionService {
             caption != null ? caption.length() + " chars" : "null",
             frames != null ? frames.size() : 0);
 
-        // Step A: Try caption-first (text-only)
+        List<LocationExtraction> combined = new ArrayList<>();
+
+        // Step A: Caption extraction (run always if caption exists)
         if (caption != null && !caption.isBlank()) {
             List<LocationExtraction> captionLocations = extractFromCaption(caption);
-            if (!captionLocations.isEmpty()) {
-                log.info("Caption extraction found {} locations", captionLocations.size());
-                return captionLocations;
-            }
+            log.info("Caption extraction found {} locations", captionLocations.size());
+            combined.addAll(captionLocations);
         }
 
-        // Step B: Vision fallback (only if caption didn't find locations)
+        // Step B: Vision extraction (run always if frames exist — NOT a fallback)
         if (frames != null && !frames.isEmpty()) {
-            log.info("Caption extraction found nothing, falling back to vision");
-            return extractFromFrames(frames);
+            List<LocationExtraction> visionLocations = extractFromFrames(frames);
+            log.info("Vision extraction found {} locations", visionLocations.size());
+            combined.addAll(visionLocations);
         }
 
-        log.info("No caption or frames available for extraction");
-        return Collections.emptyList();
+        // Merge: deduplicate by name (case-insensitive), keep highest confidence
+        List<LocationExtraction> merged = deduplicateByName(combined);
+        log.info("Merged result: {} unique locations (from {} total)", merged.size(), combined.size());
+        return merged;
     }
 
     /**
@@ -127,23 +129,26 @@ public class OptimizedExtractionService {
             caption != null ? caption.length() + " chars" : "null",
             base64Images != null ? base64Images.size() : 0);
 
-        // Step A: Try caption-first (text-only)
+        List<LocationExtraction> combined = new ArrayList<>();
+
+        // Step A: Caption extraction (run always if caption exists)
         if (caption != null && !caption.isBlank()) {
             List<LocationExtraction> captionLocations = extractFromCaption(caption);
-            if (!captionLocations.isEmpty()) {
-                log.info("Caption extraction found {} locations", captionLocations.size());
-                return captionLocations;
-            }
+            log.info("Caption extraction found {} locations", captionLocations.size());
+            combined.addAll(captionLocations);
         }
 
-        // Step B: Vision fallback with base64 images (pass caption for context)
+        // Step B: Vision extraction with base64 images (NOT a fallback)
         if (base64Images != null && !base64Images.isEmpty()) {
-            log.info("Caption extraction found nothing, falling back to vision with base64 images");
-            return extractFromBase64Images(base64Images, caption);
+            List<LocationExtraction> visionLocations = extractFromBase64Images(base64Images, caption);
+            log.info("Vision extraction found {} locations", visionLocations.size());
+            combined.addAll(visionLocations);
         }
 
-        log.info("No caption or images available for extraction");
-        return Collections.emptyList();
+        // Merge: deduplicate by name (case-insensitive), keep highest confidence
+        List<LocationExtraction> merged = deduplicateByName(combined);
+        log.info("Merged result: {} unique locations (from {} total)", merged.size(), combined.size());
+        return merged;
     }
 
     /**
@@ -305,5 +310,28 @@ public class OptimizedExtractionService {
         }
 
         return response.trim();
+    }
+
+    /**
+     * Deduplicate locations by name (case-insensitive).
+     * When two entries share the same name, the one with the higher confidence is kept.
+     */
+    private List<LocationExtraction> deduplicateByName(List<LocationExtraction> locations) {
+        java.util.Map<String, LocationExtraction> best = new java.util.LinkedHashMap<>();
+        for (LocationExtraction loc : locations) {
+            String key = loc.name().toLowerCase().trim();
+            LocationExtraction existing = best.get(key);
+            if (existing == null) {
+                best.put(key, loc);
+            } else {
+                // Keep the one with higher confidence
+                double existingConf = existing.confidence() != null ? existing.confidence() : 0.0;
+                double newConf = loc.confidence() != null ? loc.confidence() : 0.0;
+                if (newConf > existingConf) {
+                    best.put(key, loc);
+                }
+            }
+        }
+        return new ArrayList<>(best.values());
     }
 }

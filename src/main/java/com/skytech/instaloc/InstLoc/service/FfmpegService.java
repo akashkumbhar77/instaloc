@@ -127,8 +127,9 @@ public class FfmpegService {
     }
 
     private List<File> extractFramesFromVideo(Path videoPath, Path framesPath) throws IOException, InterruptedException {
-        // Use scene detection and downscale to 768px width, max 5 frames
-        String videoFilter = "select='gt(scene,0.3)',scale=768:-1";
+        // Uniform fps-based sampling: always deterministic, same frames for same reel.
+        // framesPerSecond (default 0.25) = 1 frame every 4s, capped at maxFrames.
+        String videoFilter = String.format("fps=%s,scale=768:-1", framesPerSecond);
 
         ProcessBuilder pb = new ProcessBuilder(
             "ffmpeg",
@@ -137,7 +138,6 @@ public class FfmpegService {
             "-vf", videoFilter,
             "-q:v", "3",
             "-frames:v", String.valueOf(maxFrames),
-            "-vsync", "vfr",
             framesPath.resolve("frame-%03d.jpg").toString()
         );
 

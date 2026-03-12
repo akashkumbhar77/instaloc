@@ -43,7 +43,7 @@ spring:
       chat:
         options:
           model: gpt-4o-mini
-          temperature: 0.2
+          temperature: 0.0
     google:
       genai:
         api-key: ${GEMINI_API_KEY:}
@@ -64,9 +64,10 @@ app:
   security:
     api-key: ${API_SECRET_KEY:}
   extraction:
-    frames-per-second: 1
+    frames-per-second: 0.25
     max-frames: 10
     temp-directory: /tmp/instaloc
+    min-confidence: 0.5
 
 # Server Configuration
 server:

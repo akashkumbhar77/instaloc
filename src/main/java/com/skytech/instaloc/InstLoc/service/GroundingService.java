@@ -97,15 +97,19 @@ public class GroundingService {
         PlacesSearchResponse response = null;
         Exception lastException = null;
 
-        // Try multiple search variations
-        String[] searchQueries = {
-            query,
-            query + " Vietnam",
-            query + " Da Nang",
-            query + " Ho Chi Minh",
-            query + " Hanoi",
-            query + " Hoi An"
-        };
+        // Build search queries: prefer stateOrRegion from AI, then generic fallbacks
+        List<String> queryList = new java.util.ArrayList<>();
+        queryList.add(query);  // bare name first
+        if (extraction.stateOrRegion() != null && !extraction.stateOrRegion().isBlank()) {
+            queryList.add(query + " " + extraction.stateOrRegion());
+        }
+        // Generic country/city fallbacks
+        queryList.add(query + " Vietnam");
+        queryList.add(query + " Da Nang");
+        queryList.add(query + " Ho Chi Minh");
+        queryList.add(query + " Hanoi");
+        queryList.add(query + " Hoi An");
+        String[] searchQueries = queryList.toArray(new String[0]);
 
         for (String searchQuery : searchQueries) {
             try {
@@ -122,8 +126,20 @@ public class GroundingService {
         }
 
         if (response == null || response.results == null || response.results.length == 0) {
-            log.warn("No results found for any query variation of: {}", query);
-            return null;
+            log.warn("No Google Places result found for: '{}' — saving as ungrounded location", query);
+            // Save the AI-extracted data without a placeId so it still appears in results
+            LocationEntity ungrounded = new LocationEntity();
+            ungrounded.setUserId(userId);
+            ungrounded.setName(extraction.name());
+            ungrounded.setAddress(extraction.address());
+            ungrounded.setPlaceId(null);
+            ungrounded.setCategory(extraction.category());
+            ungrounded.setStateOrRegion(extraction.stateOrRegion());
+            ungrounded.setConfidence(extraction.confidence());
+            ungrounded.setReelUrl(reelUrl);
+            if (extraction.latitude() != null) ungrounded.setLatitude(extraction.latitude());
+            if (extraction.longitude() != null) ungrounded.setLongitude(extraction.longitude());
+            return locationRepository.save(ungrounded);
         }
 
         // Take the first result
