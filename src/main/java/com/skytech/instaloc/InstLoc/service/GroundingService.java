@@ -97,18 +97,16 @@ public class GroundingService {
         PlacesSearchResponse response = null;
         Exception lastException = null;
 
-        // Build search queries: prefer stateOrRegion from AI, then generic fallbacks
+        // Build search queries: ALWAYS prefer region-qualified query to avoid wrong-country results.
+        // Bare name is only tried last as a fallback.
         List<String> queryList = new java.util.ArrayList<>();
-        queryList.add(query);  // bare name first
         if (extraction.stateOrRegion() != null && !extraction.stateOrRegion().isBlank()) {
             queryList.add(query + " " + extraction.stateOrRegion());
         }
-        // Generic country/city fallbacks
-        queryList.add(query + " Vietnam");
-        queryList.add(query + " Da Nang");
-        queryList.add(query + " Ho Chi Minh");
-        queryList.add(query + " Hanoi");
-        queryList.add(query + " Hoi An");
+        // General India fallback if no region info
+        queryList.add(query + " India");
+        // Bare name last (accept any country only if nothing else matched)
+        queryList.add(query);
         String[] searchQueries = queryList.toArray(new String[0]);
 
         for (String searchQuery : searchQueries) {
@@ -127,29 +125,30 @@ public class GroundingService {
 
         if (response == null || response.results == null || response.results.length == 0) {
             log.warn("No Google Places result found for: '{}' — saving as ungrounded location", query);
-            // Save the AI-extracted data without a placeId so it still appears in results
-            LocationEntity ungrounded = new LocationEntity();
-            ungrounded.setUserId(userId);
-            ungrounded.setName(extraction.name());
-            ungrounded.setAddress(extraction.address());
-            ungrounded.setPlaceId(null);
-            ungrounded.setCategory(extraction.category());
-            ungrounded.setStateOrRegion(extraction.stateOrRegion());
-            ungrounded.setConfidence(extraction.confidence());
-            ungrounded.setReelUrl(reelUrl);
-            if (extraction.latitude() != null) ungrounded.setLatitude(extraction.latitude());
-            if (extraction.longitude() != null) ungrounded.setLongitude(extraction.longitude());
-            return locationRepository.save(ungrounded);
+            return saveUngrounded(extraction, userId, reelUrl);
         }
 
-        // Take the first result
+        // Post-search validation: reject results from wrong country/region when we have region context.
         PlacesSearchResult result = response.results[0];
+        if (extraction.stateOrRegion() != null && !extraction.stateOrRegion().isBlank()
+                && result.formattedAddress != null) {
+            String addr = result.formattedAddress.toLowerCase();
+            String region = extraction.stateOrRegion().toLowerCase();
+            // Accept only if the address contains region OR a major Indian geo term
+            boolean regionMatch = addr.contains(region)
+                    || addr.contains("india") || addr.contains("india");
+            if (!regionMatch) {
+                log.warn("Rejected wrong-country result: '{}' address='{}' expected region='{}'",
+                        result.name, result.formattedAddress, extraction.stateOrRegion());
+                return saveUngrounded(extraction, userId, reelUrl);
+            }
+        }
 
-        // Check if place already exists
+        // Check if place already exists for this user (by placeId OR by name+region)
         if (result.placeId != null) {
-            var existing = locationRepository.findByPlaceId(result.placeId);
+            var existing = locationRepository.findByPlaceIdAndUserId(result.placeId, userId);
             if (existing.isPresent()) {
-                log.info("Location already exists: {}", result.name);
+                log.info("Location already exists for this user: {}", result.name);
                 return existing.get();
             }
         }
@@ -185,5 +184,30 @@ public class GroundingService {
             log.error("Failed to ground and save location: {}", e.getMessage(), e);
             return null;
         }
+    }
+
+    /**
+     * Save an AI-extracted location without a Google Places placeId.
+     * Deduplicates by (userId, name) to avoid stacking null-placeId duplicates.
+     */
+    private LocationEntity saveUngrounded(LocationExtraction extraction, String userId, String reelUrl) {
+        // Check if we already have this name for this user
+        var existing = locationRepository.findByUserIdAndNameIgnoreCase(userId, extraction.name());
+        if (existing.isPresent()) {
+            log.info("Ungrounded location already exists for user: {}", extraction.name());
+            return existing.get();
+        }
+        LocationEntity ungrounded = new LocationEntity();
+        ungrounded.setUserId(userId);
+        ungrounded.setName(extraction.name());
+        ungrounded.setAddress(extraction.address());
+        ungrounded.setPlaceId(null);
+        ungrounded.setCategory(extraction.category());
+        ungrounded.setStateOrRegion(extraction.stateOrRegion());
+        ungrounded.setConfidence(extraction.confidence());
+        ungrounded.setReelUrl(reelUrl);
+        if (extraction.latitude() != null) ungrounded.setLatitude(extraction.latitude());
+        if (extraction.longitude() != null) ungrounded.setLongitude(extraction.longitude());
+        return locationRepository.save(ungrounded);
     }
 }

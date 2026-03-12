@@ -395,7 +395,10 @@ public class ExtractionController {
 
         List<LocationEntity> locations = locationRepository.findByUserIdOrderByCreatedAtDesc(user);
 
+        // Deduplicate by name (case-insensitive) — handles any pre-existing duplicates in DB
+        java.util.Set<String> seen = new java.util.LinkedHashSet<>();
         List<LocationResponse> responses = locations.stream()
+                .filter(l -> seen.add(l.getName() == null ? "" : l.getName().toLowerCase()))
                 .map(this::toLocationResponse)
                 .collect(Collectors.toList());
 
