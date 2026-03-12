@@ -1,5 +1,5 @@
 # Build stage
-FROM eclipse-temurin:17-jdk-jammy AS builder
+FROM eclipse-temurin:21-jdk-alpine AS builder
 
 WORKDIR /app
 
@@ -8,26 +8,23 @@ COPY pom.xml .
 COPY src ./src
 
 # Install Maven and build
-RUN apt-get update && apt-get install -y maven && \
-    mvn clean package -DskipTests && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache maven && \
+    mvn clean package -DskipTests
 
 # Runtime stage
-FROM eclipse-temurin:17-jre-jammy
+FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+RUN apk add --no-cache \
         ffmpeg \
         python3 \
-        python3-pip \
-        curl && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+        py3-pip \
+        curl
 
-# Install yt-dlp
-RUN pip3 install --no-cache-dir yt-dlp
+# Install yt-dlp (using --break-system-packages for recent Alpine versions)
+RUN pip3 install --no-cache-dir yt-dlp --break-system-packages || pip3 install --no-cache-dir yt-dlp
 
 # Copy the built artifact
 COPY --from=builder /app/target/*.jar app.jar
@@ -43,7 +40,7 @@ RUN mkdir -p /tmp/instaloc && chmod 755 /tmp/instaloc
 EXPOSE 8080
 
 # Environment variables
-ENV JAVA_OPTS="-Xmx512m -Xms256m"
+ENV JAVA_OPTS="-Xmx256m -Xms128m"
 ENV TMP_DIR=/tmp/instaloc
 
 # Run the application
