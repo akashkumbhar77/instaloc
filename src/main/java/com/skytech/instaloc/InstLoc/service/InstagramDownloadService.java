@@ -24,7 +24,7 @@ public class InstagramDownloadService {
     @Value("${app.extraction.temp-directory:/tmp/instaloc}")
     private String tempDirectory;
 
-    private static final int TIMEOUT_MINUTES = 10;
+    private static final int TIMEOUT_MINUTES = 3;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**

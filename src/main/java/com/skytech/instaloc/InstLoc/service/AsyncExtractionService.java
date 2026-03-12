@@ -16,9 +16,11 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.scheduling.annotation.Scheduled;
 
 @Service
 public class AsyncExtractionService {
@@ -162,5 +164,25 @@ public class AsyncExtractionService {
                 entity.getReelUrl(),
                 entity.getCreatedAt()
         );
+    }
+
+    /**
+     * Watchdog task to recover stuck jobs
+     * Runs every 5 minutes, checks for PROCESSING jobs older than 10 minutes
+     */
+    @Scheduled(fixedRate = 300000)
+    public void recoverStuckJobs() {
+        LocalDateTime threshold = LocalDateTime.now().minusMinutes(10);
+        List<ExtractionJobEntity> stuckJobs = jobRepository.findByStatusAndUpdatedAtBefore(
+                ExtractionJobEntity.Status.PROCESSING, threshold);
+        
+        if (!stuckJobs.isEmpty()) {
+            log.warn("Found {} stuck jobs older than 10 minutes. Marking them as FAILED.", stuckJobs.size());
+            for (ExtractionJobEntity job : stuckJobs) {
+                job.setStatus(ExtractionJobEntity.Status.FAILED);
+                job.setErrorMessage("Job timed out - marked as stuck by watchdog");
+                jobRepository.save(job);
+            }
+        }
     }
 }
