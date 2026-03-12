@@ -16,17 +16,17 @@ FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies essential for InstaLoc's video processing
 RUN apk add --no-cache \
-        ffmpeg \
-        python3 \
-        py3-pip \
-        curl
+    ffmpeg \
+    python3 \
+    py3-pip \
+    curl
 
-# Install yt-dlp (using --break-system-packages for recent Alpine versions)
+# Install yt-dlp
 RUN pip3 install --no-cache-dir yt-dlp --break-system-packages || pip3 install --no-cache-dir yt-dlp
 
-# Copy the built artifact
+# Copy the built artifact from the builder stage
 COPY --from=builder /app/target/*.jar app.jar
 
 # Copy entrypoint script
@@ -36,12 +36,12 @@ RUN chmod +x /entrypoint.sh
 # Create temp directory for video processing
 RUN mkdir -p /tmp/instaloc && chmod 755 /tmp/instaloc
 
-# Expose port
+# Expose port 8080 for Spring Boot
 EXPOSE 8080
 
-# Environment variables
+# Environment variables for JVM and internal paths
 ENV JAVA_OPTS="-Xmx256m -Xms128m"
 ENV TMP_DIR=/tmp/instaloc
 
-# Run the application
+# Run the application using the entrypoint script
 ENTRYPOINT ["/entrypoint.sh"]
