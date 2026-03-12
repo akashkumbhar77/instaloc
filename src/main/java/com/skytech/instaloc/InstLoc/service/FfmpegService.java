@@ -19,8 +19,8 @@ public class FfmpegService {
 
     private static final Logger log = LoggerFactory.getLogger(FfmpegService.class);
 
-    @Value("${app.extraction.frames-per-second:1}")
-    private int framesPerSecond;
+    @Value("${app.extraction.frames-per-second:0.25}")
+    private double framesPerSecond;
 
     @Value("${app.extraction.max-frames:5}")
     private int maxFrames;
