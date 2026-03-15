@@ -4,9 +4,9 @@ spring:
 
   # Database Configuration
   datasource:
-    url: jdbc:postgresql://postgresql-database-d1l0f02cimcfnfvug0zpl0uo:5432/postgres
-    username: postgres
-    password: JMRdJZfkEyoimGX4X25Ub5r9lV5AWGGDad9huwvt4LIpeaxLMe5E9fw0C9CIErdK
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/instaloc}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
